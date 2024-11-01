@@ -1,0 +1,174 @@
+@import url('https://fonts.googleapis.com/css2?family=Poppins:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,100;1,200;1,300;1,400;1,500;1,600;1,700;1,800;1,900&display=swap');
+
+* {
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    font-family: "Poppins", sans-serif;
+    margin: 0;
+    padding: 0;
+    overflow-x: hidden;
+    width: 100%;
+    background: var(--bg);
+}
+
+:root {
+    --primary: #ff0048;
+    --secondary: #cf003b;
+
+    --bg: #1f1f1f;
+    --text: #eee;
+}
+
+nav {
+    width: 100%;
+    border-bottom: 1px solid rgba(255, 255, 255, .15);
+    padding: 15px 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: rgba(255, 255, 255, .02);
+    position: sticky;
+    top: 0;
+}
+
+nav .container {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    width: 85%;
+}
+
+nav .container header {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+}
+
+nav .container header .logo {
+    color: white;
+}
+
+nav .container header .desc {
+    color: #777;
+    font-size: 14px;
+}
+
+nav .container footer .actions {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    column-gap: 15px;
+}
+
+nav .container footer .actions a {
+    color: var(--primary);
+    text-decoration: none;
+}
+
+nav .container footer .actions a i {
+    margin-right: 5px;
+}
+
+nav .container footer .actions .prime {
+    padding: 5px 10px;
+    border-radius: 50px;
+    background: var(--primary);
+    color: rgba(255, 255, 255, .9);
+    margin-left: 15px;
+}
+
+nav .container footer .actions .prime .arrow {
+    margin-right: 0;
+    margin-left: 5px;
+}
+
+.content {
+    width: 100%;
+    margin-top: 50px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+}
+
+.content .wrapper {
+    width: clamp(250px, 80%, 600px);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    row-gap: 15px;
+}
+
+.content .wrapper .title {
+    color: #ccc;
+    margin-bottom: 10px;
+}
+
+.content .wrapper .button {
+    width: 100%;
+    height: 40px;
+    padding: 5px 20px;
+    border-radius: 100px;
+    background: rgba(255, 255, 255, .07);
+
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    text-decoration: none;
+    transition: background .2s;
+}
+
+.content .wrapper .button:hover {
+    background: rgba(255, 255, 255, .1);
+}
+
+.content .wrapper .button span {
+    color: #aaa;
+    margin-left: 15px;
+}
+
+.content .wrapper .button i {
+    color: rgba(255, 255, 255, .4)
+}
+
+.content .wrapper .button i.fb {
+    color: rgb(0, 89, 255);
+}
+
+.content .wrapper .separator {
+    width: 100%;
+    height: 1px;
+    background: rgba(255, 255, 255, .15);
+    position: relative;
+}
+
+.content .wrapper .separator::after {
+    position: absolute;
+    content: attr(text);
+    color: #777;
+    background: var(--bg);
+    padding: 5px 10px;
+    left: 50px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 12px;
+}
+
+.content .wrapper .description {
+    text-align: left;
+    width: 100%;
+    color: #888;
+    font-size: 15px;
+}
+
+.content .wrapper .description a {
+    color: var(--primary);
+}
