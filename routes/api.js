@@ -11,6 +11,7 @@ const { locationMemory } = require("../database/scheme/Locations");
 
 const { cloudinary, upload, bufferToStream } = require("../cloud");
 const { default: axios } = require("axios");
+const MemoryStorage = require("../memory");
 
 router.get("/", (req, res) => {
     res.json({
@@ -58,44 +59,42 @@ router.post("/avatar", helper.shouldBeLogged, upload.single("avatar"), async (re
         })
     }
 
-    if (req)
+    try {
+        const stream = bufferToStream(req.file.buffer);
 
-        try {
-            const stream = bufferToStream(req.file.buffer);
-
-            const result = await new Promise((resolve, reject) => {
-                const streamUpload = cloudinary.uploader.upload_stream({
-                    folder: "cartravel/avatars",
-                    public_id: req.user.id,
-                    width: 64, height: 64, crop: "thumb"
-                }, (error, result) => {
-                    if (error) {
-                        reject(error);
-                    }
-                    resolve(result);
-                });
-                stream.pipe(streamUpload);
-            })
-
-            const u = await user.findOne({ token: req.user.token }).catch(e => null);
-            if (u) {
-                u.data.avatar = result.secure_url;
-                await u.save();
-            }
-
-            res.json({
-                success: true,
-                url: result.secure_url
+        const result = await new Promise((resolve, reject) => {
+            const streamUpload = cloudinary.uploader.upload_stream({
+                folder: "cartravel/avatars",
+                public_id: req.user.id,
+                width: 64, height: 64, crop: "thumb"
+            }, (error, result) => {
+                if (error) {
+                    reject(error);
+                }
+                resolve(result);
             });
+            stream.pipe(streamUpload);
+        })
+
+        const u = await user.findOne({ token: req.user.token }).catch(e => null);
+        if (u) {
+            u.data.avatar = result.secure_url;
+            await u.save();
         }
-        catch (e) {
-            console.log(e);
-            res.status(500).json({
-                success: false,
-                error: "render_failure",
-                message: config.translations.render_failure[req.language]
-            })
-        }
+
+        res.json({
+            success: true,
+            url: result.secure_url
+        });
+    }
+    catch (e) {
+        console.log(e);
+        res.status(500).json({
+            success: false,
+            error: "render_failure",
+            message: config.translations.render_failure[req.language]
+        })
+    }
 });
 
 router.delete("/avatar", helper.shouldBeLogged, async (req, res, next) => {
@@ -425,7 +424,7 @@ router.get("/cars", helper.shouldBeLogged, async (req, res, next) => {
     })
 });
 
-router.get("/ride/location/:location", helper.shouldBeLogged, async (req, res) => {
+router.get("/ride/location/:location", /*helper.shouldBeLogged,*/ async (req, res) => {
     const { location } = req.params;
     if (!location) {
         return res.status(400).json({
@@ -435,24 +434,54 @@ router.get("/ride/location/:location", helper.shouldBeLogged, async (req, res) =
         })
     }
 
-    // search in database
-    const locationsFromDatabase = await locationMemory.find({ $or: [
-        { city: location.toLowerCase() },
-        { country: location.toLowerCase() },
-        { state: location.toLowerCase() },
-        { county: location.toLowerCase() }
-    ] }).catch(e => null);
-    console.log(locationsFromDatabase);
-    if (locationsFromDatabase && locationsFromDatabase.length) {
-        return res.json({
-            success: true,
-            from: "database",
-            data: locationsFromDatabase
-        })
+    // const memoryLocations = MemoryStorage.getStorage("locations");
+    function performSearch(loc) {
+        function removeDiacritics(text) {
+            return text.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+        }
+
+        try {
+            const locationParts = loc
+                .split(/[\s\-.,]+/)
+                .filter(Boolean)
+                .map(part => removeDiacritics(part).replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&'));
+
+            const regexPatterns = locationParts.map(part => new RegExp(part.split('').join('.*'), 'i'));
+
+            const matchedLocations = memoryLocations.filter(location => {
+                const city = removeDiacritics(location?.city || '');
+                const state = removeDiacritics(location?.state || '');
+                const county = removeDiacritics(location?.county || '');
+                const formatted = removeDiacritics(location?.formatted || '');
+
+                return regexPatterns.every(pattern =>
+                    pattern.test(city) ||
+                    pattern.test(state) ||
+                    pattern.test(county)
+                    // pattern.test(formatted)
+                );
+            });
+            return matchedLocations;
+        }
+        catch(e) {
+            return [];
+        }
+
+        
     }
 
+    // if (memoryLocations) {
+    //     const searchedLocations = performSearch(location);
+    //     if (searchedLocations && searchedLocations.length) {
+    //         return res.json({
+    //             success: true,
+    //             from: "memory",
+    //             data: searchedLocations
+    //         });
+    //     }
+    // }
 
-    const r = await axios.get(`https://api.geoapify.com/v1/geocode/autocomplete?text=${encodeURIComponent(location + " romania")}&apiKey=${process.env.GEOAPIFY_KEY}`).catch(e => null);
+    const r = await axios.get(`https://api.geoapify.com/v1/geocode/autocomplete?text=${encodeURIComponent(location + " românia")}&apiKey=${process.env.GEOAPIFY_KEY}`).catch(e => null);
     if (!r) {
         return res.status(400).json({
             success: false,
@@ -462,21 +491,8 @@ router.get("/ride/location/:location", helper.shouldBeLogged, async (req, res) =
     }
 
     const data = r.data;
-    const parsed = data.query.parsed;
-    let responseData = data.features.filter(a => !a.properties.postcode).map(async f => {
+    let responseData = data.features.filter(a => !a.properties.postcode).map(f => {
         const prop = f.properties;
-
-        const loc = new locationMemory({
-            coords: [prop.lon, prop.lat],
-            name: prop.formatted,
-            city: parsed.city?.toLowerCase() || prop.city?.toLowerCase() || null,
-            state: parsed.state?.toLowerCase() || prop.state?.toLowerCase() || null,
-            country: parsed.country?.toLowerCase() || prop.country?.toLowerCase() || null,
-            county: parsed.county?.toLowerCase() || prop.county?.toLowerCase() || null
-        });
-
-        await loc.save();
-
         return {
             country: prop.country || null,
             city: prop.city || null,
@@ -488,10 +504,17 @@ router.get("/ride/location/:location", helper.shouldBeLogged, async (req, res) =
         }
     })
 
-    responseData = await Promise.all(responseData);
+    // if (!memoryLocations) {
+    //     MemoryStorage.setStorage("locations", responseData);
+    // }
+    // else {
+    //     memoryLocations.push(...responseData);
+    //     MemoryStorage.setStorage("locations", memoryLocations);
+    // }
 
     return res.json({
         success: true,
+        from: "api",
         data: responseData
     })
 })
